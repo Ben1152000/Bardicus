@@ -26,6 +26,7 @@ def downloadVideo(videourl, path, filename):
             os.makedirs(path)
         yt.download(path, filename=filename)
 
+# downloads a youtube video to a file located in ./dir/
 def download(code):
     code = code.strip()
     if (not len(code) == 11):
