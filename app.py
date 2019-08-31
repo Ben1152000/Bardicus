@@ -27,137 +27,6 @@ def terminate():
     pygame.quit()
     sys.exit()
 
-def main():
-    global FPSCLOCK, DISPLAYSURF, BASICFONT
-
-    pygame.init()
-    pygame.mixer.init()
-    FPSCLOCK = pygame.time.Clock()
-    BASICFONT = pygame.font.Font('images/sanfrancisco.otf', 12)
-    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
-    pygame.display.set_caption("Bardicus Pro")
-
-    music = MusicBox()
-
-    songDict = json.loads(open("keywords.json", 'r').read())
-    for song in songDict:
-        music.queue(song)
-    
-    mediaBar = box(None, x=WINDOWWIDTH/2, y=WINDOWHEIGHT - 48, w=176, h=48)
-    playButton = button(mediaBar["rect"], x=0, y=0, w=32, h=32, image="images/play.png")
-    forwardButton = button(mediaBar["rect"], x=56, y=0, w=48, h=32, image="images/forward.png")
-    rewindButton = button(mediaBar["rect"], x=-56, y=0, w=48, h=32, image="images/rewind.png")
-
-    displayBox = box(None, x=WINDOWWIDTH/2, y=WINDOWHEIGHT/2, w=WINDOWWIDTH*2/3, h=WINDOWHEIGHT/2)
-    
-    songImage = image(None, x=displayBox["x"]+15, y=displayBox["y"]+15, image=None)
-    
-    while True: # start screen loop
-
-        for event in pygame.event.get():
-            
-            if event.type == pygame.QUIT: 
-                terminate() # exit game
-            
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = event.pos  # gets mouse position
-
-                if playButton["rect"].collidepoint(mouse_pos):
-                    if playButton["toggle"]:
-                        playButton["image"] = pygame.image.load("images/pauseActive.png").convert_alpha()
-                    else:
-                        playButton["image"] = pygame.image.load("images/playActive.png").convert_alpha()
-
-                if forwardButton["rect"].collidepoint(mouse_pos):
-                    forwardButton["image"] = pygame.image.load("images/forwardActive.png").convert_alpha()
-
-                if rewindButton["rect"].collidepoint(mouse_pos):
-                    rewindButton["image"] = pygame.image.load("images/rewindActive.png").convert_alpha()
-            
-            if event.type == pygame.MOUSEBUTTONUP:
-                mouse_pos = event.pos  # gets mouse position
-
-                if playButton["rect"].collidepoint(mouse_pos):
-                    if playButton["toggle"]:
-                        playButton["toggle"] = False
-                        playButton["image"] = pygame.image.load("images/play.png").convert_alpha()
-                        music.pause()
-                        
-                    else:
-                        playButton["toggle"] = True
-                        playButton["image"] = pygame.image.load("images/pause.png").convert_alpha()
-                        if not music.song: 
-                            music.next()
-                            songImage = updateImage(songImage, io.BytesIO(urlopen(f"https://i.ytimg.com/vi/{music.song}/default.jpg").read()))
-                        else: music.resume()
-                        
-                if forwardButton["rect"].collidepoint(mouse_pos):
-                    forwardButton["image"] = pygame.image.load("images/forward.png").convert_alpha()
-                    playButton["toggle"] = True
-                    playButton["image"] = pygame.image.load("images/pause.png").convert_alpha()
-                    music.next()
-                    songImage = updateImage(songImage, io.BytesIO(urlopen(f"https://i.ytimg.com/vi/{music.song}/default.jpg").read()))
-                
-                if rewindButton["rect"].collidepoint(mouse_pos):
-                    rewindButton["image"] = pygame.image.load("images/rewind.png").convert_alpha()
-                    playButton["toggle"] = True
-                    playButton["image"] = pygame.image.load("images/pause.png").convert_alpha()
-                    music.restart()
-        
-        # Render:
-        DISPLAYSURF.fill(BGCOLOR)
-        pygame.draw.rect(DISPLAYSURF, CANVASCOLOR, mediaBar["rect"])
-        renderButton(playButton)
-        renderButton(forwardButton)
-        renderButton(rewindButton)
-        drawText(music.song, BASICFONT, (0, 0))
-        pygame.draw.rect(DISPLAYSURF, CANVASCOLOR, displayBox["rect"])
-        if music.song: renderImage(songImage)
-        if music.song: drawText(f"{songDict[music.song]['title']}", BASICFONT, (songImage["x"], songImage["y"]+100))
-        if music.song: drawText(f"{songDict[music.song]['description']}", BASICFONT, (songImage["x"], songImage["y"]+120))
-        pygame.display.flip()
-        
-        FPSCLOCK.tick()
-
-def box(parentRect, x, y, w, h):
-    boxDict = {"w": w, "h": h}
-    boxDict["x"] = x + (parentRect.center[0] if parentRect else 0) - boxDict["w"] / 2
-    boxDict["y"] = y + (parentRect.center[1] if parentRect else 0) - boxDict["h"] / 2 
-    boxDict["rect"] = pygame.Rect((boxDict["x"], boxDict["y"], boxDict["w"], boxDict["h"]))
-    return boxDict
-
-def image(parentRect, x, y, image):
-    imageDict = {"x": x + (parentRect.center[0] if parentRect else 0), "y": y + (parentRect.center[1] if parentRect else 0)}
-    imageDict["image"] = pygame.image.load(image).convert_alpha() if image else None
-    return imageDict
-
-def updateImage(imageDict, image):
-    imageDict["image"] = pygame.image.load(image).convert_alpha()
-    return imageDict
-
-def button(parentRect, x, y, w, h, image=None):
-    buttonDict = {"w": w, "h": h, "toggle": False, "active": False}
-    buttonDict["x"] = x + (parentRect.center[0] if parentRect else 0) - buttonDict["w"] / 2
-    buttonDict["y"] = y + (parentRect.center[1] if parentRect else 0) - buttonDict["h"] / 2 
-    buttonDict["rect"] = pygame.Rect((buttonDict["x"], buttonDict["y"], buttonDict["w"], buttonDict["h"]))
-    if image: buttonDict["image"] = pygame.image.load(image).convert_alpha()
-    return buttonDict
-
-def renderImage(image):
-    #pygame.draw.rect(DISPLAYSURF, BUTTONCOLOR, button["rect"])  # draw button
-    DISPLAYSURF.blit(image["image"], (image["x"], image["y"])) # paint to screen
-
-def renderButton(button):
-    #pygame.draw.rect(DISPLAYSURF, BUTTONCOLOR, button["rect"])  # draw button
-    DISPLAYSURF.blit(button["image"], (button["x"], button["y"])) # paint to screen
-
-def drawText(text, font, location, color=None, center=False):
-    textSurf = font.render(text, True, color if color else TEXTCOLOR)
-    textRect = textSurf.get_rect()
-    if center: textRect.center = location
-    else: textRect.topleft = location
-    DISPLAYSURF.blit(textSurf, textRect)
-
 class MusicBox():
 
     def __init__(self):
@@ -206,6 +75,246 @@ class MusicBox():
         pygame.mixer.music.unpause()
         return True
 
+    def loop(self):
+        pass
+
+    def update(self):
+        print(self.q)
+
+class Box():
+
+    def __init__(self, parent, x, y, w, h):
+        self.parent = parent
+        if self.parent == None: self.rect = pygame.Rect((x, y, w, h))
+        else: self.rect = pygame.Rect((x + parent.rect.x, y + parent.rect.y, w, h))
+        self.color = CANVASCOLOR
+        self.borderColor = None
+    
+    def setColor(self, color):
+        self.color = color
+    
+    def getColor(self):
+        return self.color
+
+    def setBorderColor(self, color):
+        self.borderColor = color
+    
+    def getBorderColor(self):
+        return self.borderColor
+
+    def render(self):
+        if self.borderColor != None:
+            borderRect = pygame.Rect((self.rect.x + 2, self.rect.y + 2, self.rect.w - 4, self.rect.h - 4))
+            pygame.draw.rect(DISPLAYSURF, self.borderColor, self.rect)
+            pygame.draw.rect(DISPLAYSURF, self.color, borderRect)
+        else:
+            pygame.draw.rect(DISPLAYSURF, CANVASCOLOR, self.rect)
+
+class Button(Box):
+
+    def __init__(self, parent, x, y, w, h):
+        super().__init__(parent, x, y, w, h)
+        self.toggled = False
+        self.active = False
+    
+    def click(self, location):
+        if self.rect.collidepoint(location):
+            self.active = True
+            self.doWhenClicked()
+
+    def doWhenClicked(self):
+        print("Clicked!")
+
+    def release(self, location=None):
+        if location == None or (self.rect.collidepoint(location) and self.active):
+            self.active = False
+            self.toggled = not self.toggled
+            self.doWhenReleased()
+        else:
+            self.active = False
+            self.doWhenCancelled()
+        
+    def doWhenReleased(self):
+        print("Released!")
+
+    def doWhenCancelled(self):
+        print("Cancelled!")
+    
+    def render(self):
+        DISPLAYSURF.blit(self.image, (self.rect.x, self.rect.y)) # paint to screen
+
+class PlayButton(Button):
+
+    def __init__(self, parent, x, y, w, h):
+        super().__init__(parent, x, y, w, h)
+        self.inactiveImage = pygame.image.load("images/play.png").convert_alpha()
+        self.activeImage = pygame.image.load("images/playActive.png").convert_alpha()
+        self.toggledInactiveImage = pygame.image.load("images/pause.png").convert_alpha()
+        self.toggledActiveImage = pygame.image.load("images/pauseActive.png").convert_alpha()
+        
+        self.image = self.inactiveImage
+    
+    def doWhenClicked(self):
+        if self.toggled: 
+            self.image = self.toggledActiveImage
+        else: 
+            self.image = self.activeImage
+
+    def doWhenReleased(self):
+        if self.toggled: 
+            self.image = self.toggledInactiveImage
+            if not MUSICBOX.song:
+                MUSICBOX.next()
+                #SONGIMAGE = updateImage(SONGIMAGE, io.BytesIO(urlopen(f"https://i.ytimg.com/vi/{MUSICBOX.song}/default.jpg").read()))
+            else: MUSICBOX.resume()
+        else:
+            self.image = self.inactiveImage
+            MUSICBOX.pause()
+    
+    def doWhenCancelled(self):
+        if self.toggled: 
+            self.image = self.toggledInactiveImage
+        else: 
+            self.image = self.inactiveImage
+
+class ForwardButton(Button):
+
+    def __init__(self, parent, x, y, w, h):
+        super().__init__(parent, x, y, w, h)
+        self.inactiveImage = pygame.image.load("images/skip.png").convert_alpha()
+        self.activeImage = pygame.image.load("images/skipActive.png").convert_alpha()
+        self.image = self.inactiveImage
+    
+    def doWhenClicked(self):
+        self.image = self.activeImage
+
+    def doWhenReleased(self):
+        self.image = self.inactiveImage
+        if not playButton.toggled: playButton.release()
+        MUSICBOX.next()
+        #SONGIMAGE = updateImage(SONGIMAGE, io.BytesIO(urlopen(f"https://i.ytimg.com/vi/{MUSICBOX.song}/default.jpg").read()))
+
+    def doWhenCancelled(self):
+        self.image = self.inactiveImage
+
+class RewindButton(Button):
+
+    def __init__(self, parent, x, y, w, h):
+        super().__init__(parent, x, y, w, h)
+        self.inactiveImage = pygame.image.load("images/back.png").convert_alpha()
+        self.activeImage = pygame.image.load("images/backActive.png").convert_alpha()
+        self.image = self.inactiveImage
+    
+    def doWhenClicked(self):
+        self.image = self.activeImage
+
+    def doWhenReleased(self):
+        self.image = self.inactiveImage
+        if not playButton.toggled: playButton.release()
+        MUSICBOX.restart()
+
+    def doWhenCancelled(self):
+        self.image = self.inactiveImage
+
+class LoopButton(Button):
+
+    def __init__(self, parent, x, y, w, h):
+        super().__init__(parent, x, y, w, h)
+        self.inactiveImage = pygame.image.load("images/loop.png").convert_alpha()
+        self.activeImage = pygame.image.load("images/loopActive.png").convert_alpha()
+        self.toggledInactiveImage = pygame.image.load("images/noloop.png").convert_alpha()
+        self.toggledActiveImage = pygame.image.load("images/noloopActive.png").convert_alpha()
+        self.image = self.inactiveImage
+    
+    def doWhenClicked(self):
+        if self.toggled: 
+            self.image = self.toggledActiveImage
+        else: 
+            self.image = self.activeImage
+
+    def doWhenReleased(self):
+        if self.toggled: 
+            self.image = self.toggledInactiveImage
+        else:
+            self.image = self.inactiveImage
+
+    def doWhenCancelled(self):
+        self.image = self.inactiveImage
+
+class Image(Box):
+
+    def __init__(self, parent, x, y, image):
+        super().__init__(parent, x, y, w, h)
+        self.image = image
+    
+    def setImage(self, image):
+        self.image = image
+
+    def render(self):
+        DISPLAYSURF.blit(self.image, (self.rect.x, self.rect.y)) # paint to screen
+
+
+def main():
+
+    global FPSCLOCK, DISPLAYSURF, BASICFONT, MUSICBOX
+    pygame.init()
+    pygame.mixer.init()
+    FPSCLOCK = pygame.time.Clock()
+    BASICFONT = pygame.font.Font('images/sanfrancisco.otf', 12)
+    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+    MUSICBOX = MusicBox()
+    pygame.display.set_caption("Bardicus Pro")
+
+    songDict = json.loads(open("keywords.json", 'r').read())
+    for song in songDict:
+        MUSICBOX.queue(song)
+    
+    global playButton, forwardButton, rewindButton
+    mediaBar = Box(None, x=WINDOWWIDTH/2-88, y=WINDOWHEIGHT-72, w=176, h=48)
+    mediaBar.setBorderColor(BORDERCOLOR)
+    rewindButton = RewindButton(parent=mediaBar, x=8, y=8, w=40, h=32)
+    playButton = PlayButton(parent=mediaBar, x=50, y=8, w=32, h=32)
+    forwardButton = ForwardButton(parent=mediaBar, x=92, y=8, w=40, h=32)
+    loopButton = LoopButton(parent=mediaBar, x=136, y=8, w=32, h=32)
+
+    displayBox = Box(None, x=WINDOWWIDTH/6, y=WINDOWHEIGHT/4, w=WINDOWWIDTH*2/3, h=WINDOWHEIGHT/2)
+
+    while True: # start screen loop
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: 
+                terminate() # exit game
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                playButton.click(event.pos)
+                forwardButton.click(event.pos)
+                rewindButton.click(event.pos)
+                loopButton.click(event.pos)
+            if event.type == pygame.MOUSEBUTTONUP:
+                playButton.release(event.pos)
+                forwardButton.release(event.pos)
+                rewindButton.release(event.pos)
+                loopButton.release(event.pos)
+        
+        # Render:
+        DISPLAYSURF.fill(BGCOLOR)
+        mediaBar.render()
+        playButton.render()
+        forwardButton.render()
+        rewindButton.render()
+        loopButton.render()
+        drawText(MUSICBOX.song, BASICFONT, (0, 0))
+        displayBox.render()
+        if MUSICBOX.song: drawText(f"{songDict[MUSICBOX.song]['title']}", BASICFONT, (120, 150))
+        if MUSICBOX.song: drawText(f"{songDict[MUSICBOX.song]['description']}", BASICFONT, (120, 180))
+        pygame.display.flip()
+        FPSCLOCK.tick()
+
+def drawText(text, font, location, color=None, center=False):
+    textSurf = font.render(text, True, color if color else TEXTCOLOR)
+    textRect = textSurf.get_rect()
+    if center: textRect.center = location
+    else: textRect.topleft = location
+    DISPLAYSURF.blit(textSurf, textRect)
 
 if __name__ == "__main__":
     main()
